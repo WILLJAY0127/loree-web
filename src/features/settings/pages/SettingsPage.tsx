@@ -9,6 +9,7 @@ import { StubPage } from '@/features/shell/stub-page'
 import { toast } from '@/shared/feedback/toast-store'
 import { invalidateAfterCommand } from '@/shared/query/invalidate-after-command'
 import { confirmDestructive } from '@/shared/feedback/confirm-destructive'
+import { useBootStore } from '@/shared/store/boot-store'
 
 interface PingPublicData {
   endpoint: string
@@ -18,6 +19,10 @@ interface PingPublicData {
 
 export default function SettingsPage() {
   const qc = useQueryClient()
+  const resetWelcome = () => {
+    useBootStore.setState({ initialWelcomeDismissed: false })
+    toast('已重置：下次进入应用壳将再次显示欢迎屏')
+  }
 
   const ping = useQuery({
     queryKey: ['ping', 'public'],
@@ -53,6 +58,9 @@ export default function SettingsPage() {
             }}
           >
             试用确认框（destructive）
+          </Button>
+          <Button type="button" variant="ghost" size="sm" className="text-xs" onClick={resetWelcome}>
+            重置首次欢迎屏（调试）
           </Button>
         </div>
 
