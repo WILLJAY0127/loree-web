@@ -3,6 +3,7 @@ import { routeTitle } from '@/layouts/route-title'
 import { Button } from '@/components/ui/button'
 import { useLocation } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { openConfirm } from '@/shared/feedback/confirm-store'
 
 export function TopBar() {
   const location = useLocation()
@@ -14,9 +15,15 @@ export function TopBar() {
   const nextLabel = next === 'MIND' ? '精神' : '身体'
 
   const requestSwitch = () => {
-    if (window.confirm(`切换到「${nextLabel}」模式？`)) {
-      setRole(next)
-    }
+    void openConfirm({
+      title: '切换角色',
+      description: `切换到「${nextLabel}」模式？`,
+      variant: 'default',
+      confirmText: '切换',
+      cancelText: '取消',
+    }).then((ok) => {
+      if (ok) setRole(next)
+    })
   }
 
   return (

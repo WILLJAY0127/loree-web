@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 import { StubPage } from '@/features/shell/stub-page'
 import { toast } from '@/shared/feedback/toast-store'
 import { invalidateAfterCommand } from '@/shared/query/invalidate-after-command'
+import { confirmDestructive } from '@/shared/feedback/confirm-destructive'
 
 interface PingPublicData {
   endpoint: string
@@ -40,6 +41,18 @@ export default function SettingsPage() {
             }}
           >
             试用 Toast + 失效 API
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void confirmDestructive('这是「危险操作」样式的确认框示例，确定继续？').then((ok) => {
+                if (ok) toast('已确认')
+              })
+            }}
+          >
+            试用确认框（destructive）
           </Button>
         </div>
 

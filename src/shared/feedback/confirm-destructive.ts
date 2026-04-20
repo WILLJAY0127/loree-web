@@ -1,4 +1,12 @@
-/** 不可逆操作前的确认；后续可替换为 Dialog（阶段 0 第二步）。 */
-export function confirmDestructive(message: string): boolean {
-  return window.confirm(message)
+import { openConfirm } from '@/shared/feedback/confirm-store'
+
+/** 不可逆或敏感操作前确认（AlertDialog，替代 `window.confirm`）。 */
+export function confirmDestructive(message: string): Promise<boolean> {
+  return openConfirm({
+    title: '确认操作',
+    description: message,
+    variant: 'destructive',
+    confirmText: '确认',
+    cancelText: '取消',
+  })
 }
