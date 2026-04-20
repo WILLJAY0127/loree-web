@@ -14,7 +14,7 @@
 
 ## 技术栈（摘要）
 
-Vite 6、React 19、TypeScript（strict）、TanStack Query、Zustand、Axios、React Router 7、Ant Design Mobile、Tailwind CSS v4（`@tailwindcss/vite`）。详见架构文档 **S1 / S3**。
+Vite 6、React 19、TypeScript（strict）、TanStack Query、Zustand、**原生 `fetch` + `src/shared/api/http.ts` 薄封装**、React Router 7、**shadcn/ui 风格**（`src/components/ui`：Radix Slot + CVA + `tailwind-merge`，主题变量在 `src/index.css` 的 `@theme inline`）、Tailwind CSS v4（`@tailwindcss/vite` + `tw-animate-css`）。详见架构文档 **S1 / S3**。
 
 ## 本地开发
 
