@@ -1,6 +1,6 @@
 import type { ApiEnvelope, PagedPayload } from '@/shared/api/types'
 import type { TaskBoardRow, TaskDetail } from '@/features/task/api/types'
-import { httpGet } from '@/shared/api/http'
+import { httpGet, httpPost } from '@/shared/api/http'
 
 export type TaskListQueryParams = {
   projectId?: string
@@ -29,4 +29,48 @@ export function fetchTaskList(params: TaskListQueryParams = {}) {
 
 export function fetchTaskDetail(taskId: string) {
   return httpGet<ApiEnvelope<TaskDetail>>(`/api/v1/tasks/${encodeURIComponent(taskId)}`)
+}
+
+export function postTaskStart(taskId: string) {
+  return httpPost<ApiEnvelope<unknown>>(`/api/v1/tasks/${encodeURIComponent(taskId)}/start`, {})
+}
+
+export function postTaskSubmit(taskId: string) {
+  return httpPost<ApiEnvelope<unknown>>(`/api/v1/tasks/${encodeURIComponent(taskId)}/submit`, {})
+}
+
+export function postTaskApprove(taskId: string) {
+  return httpPost<ApiEnvelope<unknown>>(`/api/v1/tasks/${encodeURIComponent(taskId)}/approve`, {})
+}
+
+export function postTaskReject(taskId: string, reason: string) {
+  return httpPost<ApiEnvelope<unknown>>(`/api/v1/tasks/${encodeURIComponent(taskId)}/reject`, {
+    reason,
+  })
+}
+
+export function postTaskRestart(taskId: string) {
+  return httpPost<ApiEnvelope<unknown>>(`/api/v1/tasks/${encodeURIComponent(taskId)}/restart`, {})
+}
+
+export type TaskCommandOp =
+  | { op: 'start' }
+  | { op: 'submit' }
+  | { op: 'approve' }
+  | { op: 'reject'; reason: string }
+  | { op: 'restart' }
+
+export function executeTaskCommand(taskId: string, cmd: TaskCommandOp) {
+  switch (cmd.op) {
+    case 'start':
+      return postTaskStart(taskId)
+    case 'submit':
+      return postTaskSubmit(taskId)
+    case 'approve':
+      return postTaskApprove(taskId)
+    case 'reject':
+      return postTaskReject(taskId, cmd.reason)
+    case 'restart':
+      return postTaskRestart(taskId)
+  }
 }

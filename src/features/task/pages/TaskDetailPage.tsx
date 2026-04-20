@@ -1,22 +1,50 @@
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { fetchTaskDetail } from '@/features/task/api/task-api'
+import {
+  executeTaskCommand,
+  fetchTaskDetail,
+  type TaskCommandOp,
+} from '@/features/task/api/task-api'
 import { taskKeys } from '@/shared/query/query-keys'
 import { ListSkeleton } from '@/shared/components/page-state/list-skeleton'
 import { QueryErrorPanel } from '@/shared/components/page-state/query-error-panel'
 import { useRoleStore } from '@/shared/store/role-store'
+import { TaskDetailActions } from '@/features/task/components/task-detail-actions'
+import { invalidateAfterCommand } from '@/shared/query/invalidate-after-command'
+import { ApiHttpError } from '@/shared/api/http'
+import { toast } from '@/shared/feedback/toast-store'
 
 export default function TaskDetailPage() {
   const { taskId } = useParams()
   const id = taskId?.trim() ?? ''
   const role = useRoleStore((s) => s.currentRole)
+  const qc = useQueryClient()
 
   const query = useQuery({
     queryKey: taskKeys.detail(id),
     queryFn: () => fetchTaskDetail(id),
     enabled: Boolean(id),
+  })
+
+  const mutation = useMutation({
+    mutationFn: (cmd: TaskCommandOp) => executeTaskCommand(id, cmd),
+    onSuccess: async (_, cmd) => {
+      if (cmd.op === 'approve') {
+        await invalidateAfterCommand(qc, 'taskApprove')
+      } else if (cmd.op === 'reject') {
+        await invalidateAfterCommand(qc, 'taskReject')
+      } else {
+        await invalidateAfterCommand(qc, 'taskFlowMutation')
+      }
+      await qc.invalidateQueries({ queryKey: taskKeys.detail(id) })
+      toast('操作成功')
+    },
+    onError: (e) => {
+      const msg = e instanceof ApiHttpError ? e.message : e instanceof Error ? e.message : '操作失败'
+      toast(msg, { variant: 'destructive' })
+    },
   })
 
   if (!id) {
@@ -79,6 +107,8 @@ export default function TaskDetailPage() {
       </div>
 
       <div className="flex flex-1 flex-col gap-4 p-4 text-sm">
+        <TaskDetailActions task={t} role={role} busy={mutation.isPending} onCommand={(cmd) => mutation.mutate(cmd)} />
+
         <section className="space-y-1 rounded-lg border bg-card p-4 text-card-foreground">
           <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">验收标准</h3>
           <p className="whitespace-pre-wrap leading-relaxed">{t.acceptanceCriteria}</p>
