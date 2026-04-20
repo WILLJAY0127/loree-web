@@ -91,6 +91,7 @@ export default function TaskDetailPage() {
   }
 
   const canDeposit = t.status === 'PASSED_PENDING_KNOWLEDGE' && role === 'MIND'
+  const canEdit = role === 'MIND' && t.status === 'TODO'
 
   return (
     <div className="flex flex-1 flex-col">
@@ -107,6 +108,12 @@ export default function TaskDetailPage() {
       </div>
 
       <div className="flex flex-1 flex-col gap-4 p-4 text-sm">
+        {canEdit ? (
+          <Button type="button" variant="outline" size="sm" className="w-fit" asChild>
+            <Link to={`/tasks/${t.taskId}/edit`}>编辑</Link>
+          </Button>
+        ) : null}
+
         <TaskDetailActions task={t} role={role} busy={mutation.isPending} onCommand={(cmd) => mutation.mutate(cmd)} />
 
         <section className="space-y-1 rounded-lg border bg-card p-4 text-card-foreground">

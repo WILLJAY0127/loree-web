@@ -1,6 +1,6 @@
 import type { ApiEnvelope, PagedPayload } from '@/shared/api/types'
-import type { TaskBoardRow, TaskDetail } from '@/features/task/api/types'
-import { httpGet, httpPost } from '@/shared/api/http'
+import type { CreateTaskBody, CreateTaskResponseBody, TaskBoardRow, TaskDetail, UpdateTaskBody } from '@/features/task/api/types'
+import { httpGet, httpPost, httpPut } from '@/shared/api/http'
 
 export type TaskListQueryParams = {
   projectId?: string
@@ -29,6 +29,14 @@ export function fetchTaskList(params: TaskListQueryParams = {}) {
 
 export function fetchTaskDetail(taskId: string) {
   return httpGet<ApiEnvelope<TaskDetail>>(`/api/v1/tasks/${encodeURIComponent(taskId)}`)
+}
+
+export function postTask(body: CreateTaskBody) {
+  return httpPost<ApiEnvelope<CreateTaskResponseBody>>(`/api/v1/tasks`, body)
+}
+
+export function putTask(taskId: string, body: UpdateTaskBody) {
+  return httpPut<ApiEnvelope<unknown>>(`/api/v1/tasks/${encodeURIComponent(taskId)}`, body)
 }
 
 export function postTaskStart(taskId: string) {

@@ -98,3 +98,22 @@ export function httpPost<T>(
     body: JSON.stringify(body),
   })
 }
+
+export function httpPut<T>(
+  path: string,
+  body: unknown,
+  init?: Omit<RequestInit, 'method' | 'body'> & { timeoutMs?: number },
+) {
+  return httpJson<T>(path, {
+    ...init,
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+}
+
+export function httpDelete<T = unknown>(
+  path: string,
+  init?: Omit<RequestInit, 'method' | 'body'> & { timeoutMs?: number },
+) {
+  return httpJson<T>(path, { ...init, method: 'DELETE' })
+}

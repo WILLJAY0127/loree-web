@@ -18,6 +18,8 @@ export type LoreeInvalidationCommand =
   | 'taskReject'
   /** 开始执行 / 提交验收 / 重新执行 等仅影响任务读模型的 Command */
   | 'taskFlowMutation'
+  /** 创建 / 更新 / 删除项目 */
+  | 'projectMutate'
   | 'depositSubmit'
   | 'knowledgeEdit'
   | 'knowledgeLinkChange'
@@ -44,6 +46,12 @@ export async function invalidateAfterCommand(
     case 'taskReject':
     case 'taskFlowMutation':
       await client.invalidateQueries({ queryKey: taskKeys.all })
+      return
+    case 'projectMutate':
+      await Promise.all([
+        client.invalidateQueries({ queryKey: projectKeys.all }),
+        client.invalidateQueries({ queryKey: taskKeys.all }),
+      ])
       return
     case 'depositSubmit':
       await Promise.all([

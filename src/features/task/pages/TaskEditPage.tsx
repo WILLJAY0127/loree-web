@@ -1,0 +1,241 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { fetchProjectList } from '@/features/project/api/project-api'
+import { fetchTaskDetail, putTask } from '@/features/task/api/task-api'
+import { projectKeys, taskKeys } from '@/shared/query/query-keys'
+import { invalidateAfterCommand } from '@/shared/query/invalidate-after-command'
+import { createTaskFormSchema, toCreateTaskBody } from '@/features/task/schemas'
+import { ListSkeleton } from '@/shared/components/page-state/list-skeleton'
+import { QueryErrorPanel } from '@/shared/components/page-state/query-error-panel'
+import { toast } from '@/shared/feedback/toast-store'
+import { ApiHttpError } from '@/shared/api/http'
+
+function isoToDatetimeLocal(iso: string | null): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+export default function TaskEditPage() {
+  const { taskId } = useParams()
+  const id = taskId?.trim() ?? ''
+  const navigate = useNavigate()
+  const qc = useQueryClient()
+
+  const detailQuery = useQuery({
+    queryKey: taskKeys.detail(id),
+    queryFn: () => fetchTaskDetail(id),
+    enabled: Boolean(id),
+  })
+
+  const projectsQuery = useQuery({
+    queryKey: projectKeys.list({ scope: 'all' }),
+    queryFn: () => fetchProjectList(),
+  })
+  const projects = projectsQuery.data?.data
+
+  const [projectId, setProjectId] = useState('')
+  const [title, setTitle] = useState('')
+  const [estimatedMinutes, setEstimatedMinutes] = useState('45')
+  const [acceptanceCriteria, setAcceptanceCriteria] = useState('')
+  const [subModule, setSubModule] = useState('')
+  const [dueAt, setDueAt] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+  const [hydrated, setHydrated] = useState(false)
+
+  const t = detailQuery.data?.data
+
+  useEffect(() => {
+    setHydrated(false)
+  }, [id])
+
+  useEffect(() => {
+    if (!t || hydrated) return
+    setProjectId(t.projectId)
+    setTitle(t.title)
+    setEstimatedMinutes(String(t.estimatedMinutes))
+    setAcceptanceCriteria(t.acceptanceCriteria)
+    setSubModule(t.subModule ?? '')
+    setDueAt(isoToDatetimeLocal(t.dueAt))
+    setHydrated(true)
+  }, [t, hydrated])
+
+  const mutation = useMutation({
+    mutationFn: (body: import('@/features/task/api/types').UpdateTaskBody) => putTask(id, body),
+    onSuccess: async () => {
+      await invalidateAfterCommand(qc, 'taskCreateOrUpdate')
+      await qc.invalidateQueries({ queryKey: taskKeys.detail(id) })
+      toast('已保存')
+      void navigate(`/tasks/${id}`)
+    },
+    onError: (e) => {
+      toast(e instanceof ApiHttpError ? e.message : '保存失败', { variant: 'destructive' })
+    },
+  })
+
+  if (!id) {
+    return (
+      <div className="p-4 text-sm text-muted-foreground">
+        缺少任务 ID
+        <Button className="mt-2" variant="outline" size="sm" asChild>
+          <Link to="/tasks">返回</Link>
+        </Button>
+      </div>
+    )
+  }
+
+  if (detailQuery.isPending) {
+    return (
+      <div className="flex flex-1 flex-col">
+        <div className="border-b px-4 py-3 text-xs text-muted-foreground">编辑任务</div>
+        <ListSkeleton rows={4} />
+      </div>
+    )
+  }
+
+  if (detailQuery.isError) {
+    return (
+      <div className="flex flex-1 flex-col">
+        <QueryErrorPanel error={detailQuery.error} onRetry={() => void detailQuery.refetch()} />
+        <Button className="m-4 w-fit" variant="outline" size="sm" asChild>
+          <Link to="/tasks">返回</Link>
+        </Button>
+      </div>
+    )
+  }
+
+  if (!t) return null
+
+  if (t.status !== 'TODO') {
+    return (
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <Badge variant="secondary">{t.status}</Badge>
+        <p className="text-sm text-muted-foreground">仅「TODO」状态可编辑任务。请从详情页检查当前状态。</p>
+        <Button variant="outline" size="sm" className="w-fit" asChild>
+          <Link to={`/tasks/${id}`}>返回任务详情</Link>
+        </Button>
+      </div>
+    )
+  }
+
+  const submit = () => {
+    const raw = {
+      projectId,
+      title,
+      estimatedMinutes,
+      acceptanceCriteria,
+      subModule,
+      dueAt,
+    }
+    const r = createTaskFormSchema.safeParse(raw)
+    if (!r.success) {
+      const e: Record<string, string> = {}
+      for (const issue of r.error.issues) {
+        e[String(issue.path[0] ?? '_')] = issue.message
+      }
+      setFieldErrors(e)
+      return
+    }
+    setFieldErrors({})
+    mutation.mutate(toCreateTaskBody(r.data))
+  }
+
+  return (
+    <div className="flex flex-1 flex-col">
+      <div className="border-b bg-card/30 px-4 py-3">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">任务</p>
+        <h2 className="text-lg font-semibold tracking-tight">编辑任务</h2>
+        <p className="mt-0.5 text-xs text-muted-foreground">PUT /api/v1/tasks/{'{id}'} · 仅 TODO</p>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
+        <label className="grid max-w-lg gap-1 text-xs">
+          <span>所属项目 *</span>
+          <select
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          >
+            {projects?.map((p) => (
+              <option key={p.projectId} value={p.projectId}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          {fieldErrors.projectId ? <span className="text-destructive">{fieldErrors.projectId}</span> : null}
+        </label>
+
+        <label className="grid max-w-lg gap-1 text-xs">
+          <span>标题 *</span>
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            maxLength={500}
+          />
+          {fieldErrors.title ? <span className="text-destructive">{fieldErrors.title}</span> : null}
+        </label>
+
+        <label className="grid max-w-lg gap-1 text-xs">
+          <span>预估时长（分钟）*</span>
+          <input
+            type="number"
+            min={1}
+            max={120}
+            value={estimatedMinutes}
+            onChange={(e) => setEstimatedMinutes(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          />
+          {fieldErrors.estimatedMinutes ? <span className="text-destructive">{fieldErrors.estimatedMinutes}</span> : null}
+        </label>
+
+        <label className="grid max-w-lg gap-1 text-xs">
+          <span>验收标准 *</span>
+          <textarea
+            value={acceptanceCriteria}
+            onChange={(e) => setAcceptanceCriteria(e.target.value)}
+            className="min-h-[6rem] rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+            maxLength={1000}
+          />
+          {fieldErrors.acceptanceCriteria ? (
+            <span className="text-destructive">{fieldErrors.acceptanceCriteria}</span>
+          ) : null}
+        </label>
+
+        <label className="grid max-w-lg gap-1 text-xs">
+          <span>子模块（可选）</span>
+          <input
+            value={subModule}
+            onChange={(e) => setSubModule(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+            maxLength={200}
+          />
+        </label>
+
+        <label className="grid max-w-lg gap-1 text-xs">
+          <span>截止时间（可选）</span>
+          <input
+            type="datetime-local"
+            value={dueAt}
+            onChange={(e) => setDueAt(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+          />
+        </label>
+
+        <div className="flex flex-wrap gap-2 pt-2">
+          <Button type="button" disabled={mutation.isPending} onClick={submit}>
+            保存修改
+          </Button>
+          <Button type="button" variant="outline" asChild>
+            <Link to={`/tasks/${id}`}>取消</Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}

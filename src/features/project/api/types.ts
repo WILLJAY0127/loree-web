@@ -8,3 +8,13 @@ export interface ProjectSummaryRow {
   doneCount: number
   createdAt: string
 }
+
+export interface ProjectUpsertBody {
+  name: string
+  goal?: string
+  period?: string
+}
+
+export interface CreateProjectResponseBody {
+  projectId: string
+}

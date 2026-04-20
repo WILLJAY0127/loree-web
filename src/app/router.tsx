@@ -5,6 +5,8 @@ import { RoleGuard } from '@/shared/components/RoleGuard'
 import { ReviewLayout } from '@/features/review/review-layout'
 
 import TaskListPage from '@/features/task/pages/TaskListPage'
+import TaskCreatePage from '@/features/task/pages/TaskCreatePage'
+import TaskEditPage from '@/features/task/pages/TaskEditPage'
 import TaskDetailPage from '@/features/task/pages/TaskDetailPage'
 import ProjectListPage from '@/features/project/pages/ProjectListPage'
 import KnowledgeListPage from '@/features/knowledge/pages/KnowledgeListPage'
@@ -29,8 +31,24 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="/tasks" replace /> },
 
-      { path: 'tasks', element: <TaskListPage /> },
+      {
+        path: 'tasks/new',
+        element: (
+          <Mind>
+            <TaskCreatePage />
+          </Mind>
+        ),
+      },
+      {
+        path: 'tasks/:taskId/edit',
+        element: (
+          <Mind>
+            <TaskEditPage />
+          </Mind>
+        ),
+      },
       { path: 'tasks/:taskId', element: <TaskDetailPage /> },
+      { path: 'tasks', element: <TaskListPage /> },
       { path: 'projects', element: <ProjectListPage /> },
 
       {

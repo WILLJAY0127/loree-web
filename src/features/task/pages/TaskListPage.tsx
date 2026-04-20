@@ -8,10 +8,12 @@ import { fetchProjectList } from '@/features/project/api/project-api'
 import { projectKeys, taskKeys } from '@/shared/query/query-keys'
 import { ListQueryShell } from '@/shared/components/page-state/list-query-shell'
 import { TaskListToolbar } from '@/features/task/components/task-list-toolbar'
+import { useRoleStore } from '@/shared/store/role-store'
 
 const PAGE_SIZE = 20
 
 export default function TaskListPage() {
+  const role = useRoleStore((s) => s.currentRole)
   const [page, setPage] = useState(0)
   const [status, setStatus] = useState('')
   const [projectId, setProjectId] = useState('')
@@ -49,9 +51,18 @@ export default function TaskListPage() {
   return (
     <div className="flex flex-1 flex-col">
       <div className="border-b bg-card/30 px-4 py-3">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">任务</p>
-        <h2 className="text-lg font-semibold tracking-tight">任务列表</h2>
-        <p className="mt-0.5 text-xs text-muted-foreground">GET /api/v1/tasks · 筛选与分页 · 刷新</p>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">任务</p>
+            <h2 className="text-lg font-semibold tracking-tight">任务列表</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">GET /api/v1/tasks · 筛选与分页 · 刷新</p>
+          </div>
+          {role === 'MIND' ? (
+            <Button type="button" size="sm" asChild>
+              <Link to="/tasks/new">新建任务</Link>
+            </Button>
+          ) : null}
+        </div>
       </div>
 
       <TaskListToolbar

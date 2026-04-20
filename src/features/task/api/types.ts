@@ -29,3 +29,20 @@ export interface TaskDetail {
   createdAt: string
   updatedAt: string
 }
+
+/** POST /api/v1/tasks */
+export interface CreateTaskBody {
+  projectId: string
+  title: string
+  estimatedMinutes: number
+  acceptanceCriteria: string
+  subModule?: string
+  dueAt?: string
+}
+
+/** PUT /api/v1/tasks/{id} — 与创建字段一致，全部可选更新 */
+export type UpdateTaskBody = Partial<CreateTaskBody>
+
+export interface CreateTaskResponseBody {
+  taskId: string
+}
