@@ -1,13 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm, type Resolver } from 'react-hook-form'
+import { useEffect, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { fetchProjectList } from '@/features/project/api/project-api'
 import { fetchTaskDetail, putTask } from '@/features/task/api/task-api'
+import type { UpdateTaskBody } from '@/features/task/api/types'
 import { projectKeys, taskKeys } from '@/shared/query/query-keys'
 import { invalidateAfterCommand } from '@/shared/query/invalidate-after-command'
-import { createTaskFormSchema, toCreateTaskBody } from '@/features/task/schemas'
+import {
+  createTaskFormSchema,
+  toCreateTaskBody,
+  type CreateTaskFormValues,
+} from '@/features/task/schemas'
 import { ListSkeleton } from '@/shared/components/page-state/list-skeleton'
 import { QueryErrorPanel } from '@/shared/components/page-state/query-error-panel'
 import { toast } from '@/shared/feedback/toast-store'
@@ -26,6 +33,7 @@ export default function TaskEditPage() {
   const id = taskId?.trim() ?? ''
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const seededForTaskIdRef = useRef<string | null>(null)
 
   const detailQuery = useQuery({
     queryKey: taskKeys.detail(id),
@@ -39,34 +47,42 @@ export default function TaskEditPage() {
   })
   const projects = projectsQuery.data?.data
 
-  const [projectId, setProjectId] = useState('')
-  const [title, setTitle] = useState('')
-  const [estimatedMinutes, setEstimatedMinutes] = useState('45')
-  const [acceptanceCriteria, setAcceptanceCriteria] = useState('')
-  const [subModule, setSubModule] = useState('')
-  const [dueAt, setDueAt] = useState('')
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
-  const [hydrated, setHydrated] = useState(false)
+  const form = useForm<CreateTaskFormValues>({
+    resolver: zodResolver(createTaskFormSchema) as Resolver<CreateTaskFormValues>,
+    defaultValues: {
+      projectId: '',
+      title: '',
+      estimatedMinutes: 45,
+      acceptanceCriteria: '',
+      subModule: '',
+      dueAt: '',
+    },
+  })
+
+  const { register, handleSubmit, reset, formState } = form
 
   const t = detailQuery.data?.data
 
   useEffect(() => {
-    setHydrated(false)
+    seededForTaskIdRef.current = null
   }, [id])
 
   useEffect(() => {
-    if (!t || hydrated) return
-    setProjectId(t.projectId)
-    setTitle(t.title)
-    setEstimatedMinutes(String(t.estimatedMinutes))
-    setAcceptanceCriteria(t.acceptanceCriteria)
-    setSubModule(t.subModule ?? '')
-    setDueAt(isoToDatetimeLocal(t.dueAt))
-    setHydrated(true)
-  }, [t, hydrated])
+    if (!t || t.status !== 'TODO') return
+    if (seededForTaskIdRef.current === id) return
+    seededForTaskIdRef.current = id
+    reset({
+      projectId: t.projectId,
+      title: t.title,
+      estimatedMinutes: t.estimatedMinutes,
+      acceptanceCriteria: t.acceptanceCriteria,
+      subModule: t.subModule ?? '',
+      dueAt: isoToDatetimeLocal(t.dueAt),
+    })
+  }, [id, t, reset])
 
   const mutation = useMutation({
-    mutationFn: (body: import('@/features/task/api/types').UpdateTaskBody) => putTask(id, body),
+    mutationFn: (body: UpdateTaskBody) => putTask(id, body),
     onSuccess: async () => {
       await invalidateAfterCommand(qc, 'taskCreateOrUpdate')
       await qc.invalidateQueries({ queryKey: taskKeys.detail(id) })
@@ -77,6 +93,12 @@ export default function TaskEditPage() {
       toast(e instanceof ApiHttpError ? e.message : '保存失败', { variant: 'destructive' })
     },
   })
+
+  const onSubmit = (values: CreateTaskFormValues) => {
+    mutation.mutate(toCreateTaskBody(values))
+  }
+
+  const err = formState.errors
 
   if (!id) {
     return (
@@ -123,28 +145,6 @@ export default function TaskEditPage() {
     )
   }
 
-  const submit = () => {
-    const raw = {
-      projectId,
-      title,
-      estimatedMinutes,
-      acceptanceCriteria,
-      subModule,
-      dueAt,
-    }
-    const r = createTaskFormSchema.safeParse(raw)
-    if (!r.success) {
-      const e: Record<string, string> = {}
-      for (const issue of r.error.issues) {
-        e[String(issue.path[0] ?? '_')] = issue.message
-      }
-      setFieldErrors(e)
-      return
-    }
-    setFieldErrors({})
-    mutation.mutate(toCreateTaskBody(r.data))
-  }
-
   return (
     <div className="flex flex-1 flex-col">
       <div className="border-b bg-card/30 px-4 py-3">
@@ -153,12 +153,15 @@ export default function TaskEditPage() {
         <p className="mt-0.5 text-xs text-muted-foreground">PUT /api/v1/tasks/{'{id}'} · 仅 TODO</p>
       </div>
 
-      <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
+      <form
+        className="flex flex-1 flex-col gap-3 overflow-y-auto p-4"
+        onSubmit={handleSubmit(onSubmit)}
+        noValidate
+      >
         <label className="grid max-w-lg gap-1 text-xs">
           <span>所属项目 *</span>
           <select
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
+            {...register('projectId')}
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
           >
             {projects?.map((p) => (
@@ -167,18 +170,19 @@ export default function TaskEditPage() {
               </option>
             ))}
           </select>
-          {fieldErrors.projectId ? <span className="text-destructive">{fieldErrors.projectId}</span> : null}
+          {err.projectId?.message ? (
+            <span className="text-destructive">{err.projectId.message}</span>
+          ) : null}
         </label>
 
         <label className="grid max-w-lg gap-1 text-xs">
           <span>标题 *</span>
           <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            {...register('title')}
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
             maxLength={500}
           />
-          {fieldErrors.title ? <span className="text-destructive">{fieldErrors.title}</span> : null}
+          {err.title?.message ? <span className="text-destructive">{err.title.message}</span> : null}
         </label>
 
         <label className="grid max-w-lg gap-1 text-xs">
@@ -187,31 +191,30 @@ export default function TaskEditPage() {
             type="number"
             min={1}
             max={120}
-            value={estimatedMinutes}
-            onChange={(e) => setEstimatedMinutes(e.target.value)}
+            {...register('estimatedMinutes')}
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
           />
-          {fieldErrors.estimatedMinutes ? <span className="text-destructive">{fieldErrors.estimatedMinutes}</span> : null}
+          {err.estimatedMinutes?.message ? (
+            <span className="text-destructive">{err.estimatedMinutes.message}</span>
+          ) : null}
         </label>
 
         <label className="grid max-w-lg gap-1 text-xs">
           <span>验收标准 *</span>
           <textarea
-            value={acceptanceCriteria}
-            onChange={(e) => setAcceptanceCriteria(e.target.value)}
+            {...register('acceptanceCriteria')}
             className="min-h-[6rem] rounded-md border border-input bg-background px-2 py-1.5 text-sm"
             maxLength={1000}
           />
-          {fieldErrors.acceptanceCriteria ? (
-            <span className="text-destructive">{fieldErrors.acceptanceCriteria}</span>
+          {err.acceptanceCriteria?.message ? (
+            <span className="text-destructive">{err.acceptanceCriteria.message}</span>
           ) : null}
         </label>
 
         <label className="grid max-w-lg gap-1 text-xs">
           <span>子模块（可选）</span>
           <input
-            value={subModule}
-            onChange={(e) => setSubModule(e.target.value)}
+            {...register('subModule')}
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
             maxLength={200}
           />
@@ -221,21 +224,20 @@ export default function TaskEditPage() {
           <span>截止时间（可选）</span>
           <input
             type="datetime-local"
-            value={dueAt}
-            onChange={(e) => setDueAt(e.target.value)}
+            {...register('dueAt')}
             className="h-9 rounded-md border border-input bg-background px-2 text-sm"
           />
         </label>
 
         <div className="flex flex-wrap gap-2 pt-2">
-          <Button type="button" disabled={mutation.isPending} onClick={submit}>
+          <Button type="submit" disabled={mutation.isPending}>
             保存修改
           </Button>
           <Button type="button" variant="outline" asChild>
             <Link to={`/tasks/${id}`}>取消</Link>
           </Button>
         </div>
-      </div>
+      </form>
     </div>
   )
 }
