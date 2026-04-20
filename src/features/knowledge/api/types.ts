@@ -27,6 +27,18 @@ export interface KnowledgeReviewNoteItem {
   note: string
 }
 
+/** POST /api/v1/tasks/{taskId}/deposit/knowledge — 与独立创建字段一致 */
+export interface DepositKnowledgeBody {
+  projectId: string
+  content: string
+  tags: string[]
+  priority: string
+}
+
+export interface CreateKnowledgeResponseBody {
+  knowledgeId: string
+}
+
 export interface KnowledgeDetail {
   knowledgeId: string
   taskId?: string | null

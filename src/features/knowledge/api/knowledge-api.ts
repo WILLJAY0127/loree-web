@@ -1,6 +1,11 @@
 import type { ApiEnvelope, PagedPayload } from '@/shared/api/types'
-import type { KnowledgeDetail, KnowledgeListItem } from '@/features/knowledge/api/types'
-import { httpGet } from '@/shared/api/http'
+import type {
+  CreateKnowledgeResponseBody,
+  DepositKnowledgeBody,
+  KnowledgeDetail,
+  KnowledgeListItem,
+} from '@/features/knowledge/api/types'
+import { httpGet, httpPost } from '@/shared/api/http'
 
 export type KnowledgeListQueryParams = {
   projectId?: string
@@ -33,4 +38,15 @@ export function fetchKnowledgeDetail(knowledgeId: string) {
   return httpGet<ApiEnvelope<KnowledgeDetail>>(
     `/api/v1/knowledge/${encodeURIComponent(knowledgeId)}`,
   )
+}
+
+export function postDepositKnowledge(taskId: string, body: DepositKnowledgeBody) {
+  return httpPost<ApiEnvelope<CreateKnowledgeResponseBody>>(
+    `/api/v1/tasks/${encodeURIComponent(taskId)}/deposit/knowledge`,
+    body,
+  )
+}
+
+export function postDepositComplete(taskId: string) {
+  return httpPost<ApiEnvelope<unknown>>(`/api/v1/tasks/${encodeURIComponent(taskId)}/deposit/complete`, {})
 }
