@@ -1,10 +1,13 @@
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import type { ApiEnvelope } from '@/shared/api/types'
 import { httpGet } from '@/shared/api/http'
 import { cn } from '@/lib/utils'
 import { StubPage } from '@/features/shell/stub-page'
+import { toast } from '@/shared/feedback/toast-store'
+import { invalidateAfterCommand } from '@/shared/query/invalidate-after-command'
 
 interface PingPublicData {
   endpoint: string
@@ -13,6 +16,8 @@ interface PingPublicData {
 }
 
 export default function SettingsPage() {
+  const qc = useQueryClient()
+
   const ping = useQuery({
     queryKey: ['ping', 'public'],
     queryFn: () => httpGet<ApiEnvelope<PingPublicData>>('/api/v1/ping/public'),
@@ -24,6 +29,20 @@ export default function SettingsPage() {
       description="设置与 P1 入口占位。角色切换请用顶栏「切换角色」。"
     >
       <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            onClick={() => {
+              void invalidateAfterCommand(qc, 'taskReject')
+              toast('已调用 invalidate（taskReject）+ Toast 演示')
+            }}
+          >
+            试用 Toast + 失效 API
+          </Button>
+        </div>
+
         <div className="flex flex-wrap gap-2">
           <Link
             to="/retro"
