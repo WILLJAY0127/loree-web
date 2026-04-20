@@ -44,7 +44,7 @@ Vite 6、React 19、TypeScript（strict）、TanStack Query、Zustand、**原生
 - `src/shared/` — API 客户端、角色 Store、通用组件与工具  
 - `src/features/task|project|knowledge|review|...` — 按 BC 拆分；每模块内 **`api/`、`hooks/`、`components/`、`pages/`**（与《前端技术架构》S3 一致，项目独立为 `project` 而非嵌在 `task` 下）  
 
-**本仓库更细的工程约定**（表单、QueryKey、命名、何时拆组件）：见 [`docs/前端代码约定.md`](docs/前端代码约定.md)。里程碑进度见 [`docs/前端实施计划.md`](docs/前端实施计划.md)。
+**本仓库更细的工程约定**（表单、QueryKey、命名、何时拆组件）：见 [`docs/前端代码约定.md`](docs/前端代码约定.md)。里程碑进度见 [`docs/前端实施计划.md`](docs/前端实施计划.md)。**非阻塞优化清单**（与业务主线分开排）：见 [`docs/前端后续优化项.md`](docs/前端后续优化项.md)。
 
 ## 构建
 
