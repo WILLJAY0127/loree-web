@@ -44,7 +44,7 @@ Vite 6、React 19、TypeScript（strict）、TanStack Query、Zustand、**原生
 - `src/shared/` — API 客户端、角色 Store、通用组件与工具  
 - `src/features/task|knowledge|review|...` — 按 BC / 模块拆分页面与业务组件  
 
-当前仅包含 **首页壳 + 角色切换 + `/api/v1/ping/public` 连通性检测**，便于接手同学验证代理与鉴权头。
+**本仓库更细的工程约定**（表单、QueryKey、命名、何时拆组件）：见 [`docs/前端代码约定.md`](docs/前端代码约定.md)。里程碑进度见 [`docs/前端实施计划.md`](docs/前端实施计划.md)。
 
 ## 构建
 
