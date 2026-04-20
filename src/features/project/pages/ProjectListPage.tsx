@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -13,6 +14,7 @@ import { invalidateAfterCommand } from '@/shared/query/invalidate-after-command'
 import { toast } from '@/shared/feedback/toast-store'
 import { confirmDestructive } from '@/shared/feedback/confirm-destructive'
 import { ApiHttpError } from '@/shared/api/http'
+import { zodResolverTyped } from '@/shared/form/zod-resolver-typed'
 
 const emptyForm: ProjectUpsertForm = { name: '', goal: '', period: '' }
 
@@ -22,12 +24,17 @@ export default function ProjectListPage() {
   const isMind = role === 'MIND'
 
   const [showCreate, setShowCreate] = useState(false)
-  const [createForm, setCreateForm] = useState<ProjectUpsertForm>(emptyForm)
-  const [createErrors, setCreateErrors] = useState<Record<string, string>>({})
-
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [editForm, setEditForm] = useState<ProjectUpsertForm>(emptyForm)
-  const [editErrors, setEditErrors] = useState<Record<string, string>>({})
+
+  const createForm = useForm<ProjectUpsertForm>({
+    resolver: zodResolverTyped(projectUpsertSchema),
+    defaultValues: emptyForm,
+  })
+
+  const editForm = useForm<ProjectUpsertForm>({
+    resolver: zodResolverTyped(projectUpsertSchema),
+    defaultValues: emptyForm,
+  })
 
   const query = useQuery({
     queryKey: projectKeys.list({ scope: 'all' }),
@@ -46,8 +53,7 @@ export default function ProjectListPage() {
     onSuccess: async () => {
       await invalidateProjects()
       toast('项目已创建')
-      setCreateForm(emptyForm)
-      setCreateErrors({})
+      createForm.reset(emptyForm)
       setShowCreate(false)
     },
     onError: (e) => {
@@ -61,7 +67,7 @@ export default function ProjectListPage() {
       await invalidateProjects()
       toast('已保存')
       setEditingId(null)
-      setEditErrors({})
+      editForm.reset(emptyForm)
     },
     onError: (e) => {
       toast(e instanceof ApiHttpError ? e.message : '保存失败', { variant: 'destructive' })
@@ -81,44 +87,21 @@ export default function ProjectListPage() {
 
   const startEdit = (p: ProjectSummaryRow) => {
     setEditingId(p.projectId)
-    setEditForm({
+    editForm.reset({
       name: p.name,
       goal: p.goal ?? '',
       period: p.period ?? '',
     })
-    setEditErrors({})
     setShowCreate(false)
   }
 
-  const submitCreate = () => {
-    const r = projectUpsertSchema.safeParse(createForm)
-    if (!r.success) {
-      const e: Record<string, string> = {}
-      for (const issue of r.error.issues) {
-        const k = String(issue.path[0] ?? '_')
-        e[k] = issue.message
-      }
-      setCreateErrors(e)
-      return
-    }
-    setCreateErrors({})
-    createMutation.mutate(toProjectUpsertBody(r.data))
+  const onSubmitCreate = (data: ProjectUpsertForm) => {
+    createMutation.mutate(toProjectUpsertBody(data))
   }
 
-  const submitEdit = () => {
+  const onSubmitEdit = (data: ProjectUpsertForm) => {
     if (!editingId) return
-    const r = projectUpsertSchema.safeParse(editForm)
-    if (!r.success) {
-      const e: Record<string, string> = {}
-      for (const issue of r.error.issues) {
-        const k = String(issue.path[0] ?? '_')
-        e[k] = issue.message
-      }
-      setEditErrors(e)
-      return
-    }
-    setEditErrors({})
-    updateMutation.mutate({ id: editingId, body: toProjectUpsertBody(r.data) })
+    updateMutation.mutate({ id: editingId, body: toProjectUpsertBody(data) })
   }
 
   const requestDelete = (p: ProjectSummaryRow) => {
@@ -128,6 +111,9 @@ export default function ProjectListPage() {
   }
 
   const busy = createMutation.isPending || updateMutation.isPending || deleteMutation.isPending
+
+  const createErr = createForm.formState.errors
+  const editErr = editForm.formState.errors
 
   return (
     <div className="flex flex-1 flex-col">
@@ -141,7 +127,18 @@ export default function ProjectListPage() {
 
       {isMind ? (
         <div className="flex flex-wrap gap-2 border-b px-4 py-2">
-          <Button type="button" size="sm" variant={showCreate ? 'secondary' : 'outline'} onClick={() => setShowCreate((v) => !v)}>
+          <Button
+            type="button"
+            size="sm"
+            variant={showCreate ? 'secondary' : 'outline'}
+            onClick={() =>
+              setShowCreate((v) => {
+                const next = !v
+                if (next) createForm.reset(emptyForm)
+                return next
+              })
+            }
+          >
             {showCreate ? '收起新建' : '新建项目'}
           </Button>
           <Button type="button" size="sm" variant="outline" asChild>
@@ -151,93 +148,113 @@ export default function ProjectListPage() {
       ) : null}
 
       {isMind && showCreate ? (
-        <div className="space-y-3 border-b bg-muted/15 px-4 py-3">
+        <form
+          className="space-y-3 border-b bg-muted/15 px-4 py-3"
+          onSubmit={createForm.handleSubmit(onSubmitCreate)}
+          noValidate
+        >
           <p className="text-xs font-medium text-muted-foreground">新建项目</p>
           <div className="grid max-w-lg gap-2">
             <label className="grid gap-1 text-xs">
               <span>名称 *</span>
               <input
-                value={createForm.name}
-                onChange={(e) => setCreateForm((f) => ({ ...f, name: e.target.value }))}
+                {...createForm.register('name')}
                 className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                 maxLength={200}
               />
-              {createErrors.name ? <span className="text-destructive">{createErrors.name}</span> : null}
+              {createErr.name?.message ? <span className="text-destructive">{createErr.name.message}</span> : null}
             </label>
             <label className="grid gap-1 text-xs">
               <span>目标</span>
               <textarea
-                value={createForm.goal}
-                onChange={(e) => setCreateForm((f) => ({ ...f, goal: e.target.value }))}
+                {...createForm.register('goal')}
                 className="min-h-[4rem] rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                 maxLength={500}
               />
-              {createErrors.goal ? <span className="text-destructive">{createErrors.goal}</span> : null}
+              {createErr.goal?.message ? <span className="text-destructive">{createErr.goal.message}</span> : null}
             </label>
             <label className="grid gap-1 text-xs">
               <span>周期</span>
               <input
-                value={createForm.period}
-                onChange={(e) => setCreateForm((f) => ({ ...f, period: e.target.value }))}
+                {...createForm.register('period')}
                 className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                 maxLength={100}
               />
-              {createErrors.period ? <span className="text-destructive">{createErrors.period}</span> : null}
+              {createErr.period?.message ? <span className="text-destructive">{createErr.period.message}</span> : null}
             </label>
             <div className="flex gap-2">
-              <Button type="button" size="sm" disabled={busy} onClick={submitCreate}>
+              <Button type="submit" size="sm" disabled={busy}>
                 创建
               </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setShowCreate(false)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setShowCreate(false)
+                  createForm.reset(emptyForm)
+                }}
+              >
                 取消
               </Button>
             </div>
           </div>
-        </div>
+        </form>
       ) : null}
 
       {isMind && editingId ? (
-        <div className="space-y-3 border-b bg-muted/15 px-4 py-3">
+        <form
+          className="space-y-3 border-b bg-muted/15 px-4 py-3"
+          onSubmit={editForm.handleSubmit(onSubmitEdit)}
+          noValidate
+        >
           <p className="text-xs font-medium text-muted-foreground">编辑项目</p>
           <div className="grid max-w-lg gap-2">
             <label className="grid gap-1 text-xs">
               <span>名称 *</span>
               <input
-                value={editForm.name}
-                onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                {...editForm.register('name')}
                 className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                 maxLength={200}
               />
-              {editErrors.name ? <span className="text-destructive">{editErrors.name}</span> : null}
+              {editErr.name?.message ? <span className="text-destructive">{editErr.name.message}</span> : null}
             </label>
             <label className="grid gap-1 text-xs">
               <span>目标</span>
               <textarea
-                value={editForm.goal}
-                onChange={(e) => setEditForm((f) => ({ ...f, goal: e.target.value }))}
+                {...editForm.register('goal')}
                 className="min-h-[4rem] rounded-md border border-input bg-background px-2 py-1.5 text-sm"
                 maxLength={500}
               />
+              {editErr.goal?.message ? <span className="text-destructive">{editErr.goal.message}</span> : null}
             </label>
             <label className="grid gap-1 text-xs">
               <span>周期</span>
               <input
-                value={editForm.period}
-                onChange={(e) => setEditForm((f) => ({ ...f, period: e.target.value }))}
+                {...editForm.register('period')}
                 className="h-9 rounded-md border border-input bg-background px-2 text-sm"
                 maxLength={100}
               />
+              {editErr.period?.message ? <span className="text-destructive">{editErr.period.message}</span> : null}
             </label>
             <div className="flex gap-2">
-              <Button type="button" size="sm" disabled={busy} onClick={submitEdit}>
+              <Button type="submit" size="sm" disabled={busy}>
                 保存
               </Button>
-              <Button type="button" size="sm" variant="ghost" onClick={() => setEditingId(null)}>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setEditingId(null)
+                  editForm.reset(emptyForm)
+                }}
+              >
                 取消编辑
               </Button>
             </div>
           </div>
-        </div>
+        </form>
       ) : null}
 
       <ListQueryShell

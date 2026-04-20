@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useForm, type Resolver } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { useEffect, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
@@ -19,6 +18,7 @@ import { ListSkeleton } from '@/shared/components/page-state/list-skeleton'
 import { QueryErrorPanel } from '@/shared/components/page-state/query-error-panel'
 import { toast } from '@/shared/feedback/toast-store'
 import { ApiHttpError } from '@/shared/api/http'
+import { zodResolverTyped } from '@/shared/form/zod-resolver-typed'
 
 function isoToDatetimeLocal(iso: string | null): string {
   if (!iso) return ''
@@ -48,7 +48,7 @@ export default function TaskEditPage() {
   const projects = projectsQuery.data?.data
 
   const form = useForm<CreateTaskFormValues>({
-    resolver: zodResolver(createTaskFormSchema) as Resolver<CreateTaskFormValues>,
+    resolver: zodResolverTyped(createTaskFormSchema),
     defaultValues: {
       projectId: '',
       title: '',
