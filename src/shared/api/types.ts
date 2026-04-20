@@ -4,3 +4,12 @@ export interface ApiEnvelope<T> {
   data: T
   timestamp?: string
 }
+
+/** Spring Data 风格分页（与 API 文档列表响应一致）。 */
+export interface PagedPayload<T> {
+  content: T[]
+  page: number
+  size: number
+  totalElements: number
+  totalPages: number
+}
