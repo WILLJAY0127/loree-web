@@ -1,51 +1,17 @@
 import { Link, useParams } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  executeTaskCommand,
-  fetchTaskDetail,
-  type TaskCommandOp,
-} from '@/features/task/api/task-api'
-import { taskKeys } from '@/shared/query/query-keys'
 import { ListSkeleton } from '@/shared/components/page-state/list-skeleton'
 import { QueryErrorPanel } from '@/shared/components/page-state/query-error-panel'
 import { useRoleStore } from '@/shared/store/role-store'
 import { TaskDetailActions } from '@/features/task/components/task-detail-actions'
-import { invalidateAfterCommand } from '@/shared/query/invalidate-after-command'
-import { ApiHttpError } from '@/shared/api/http'
-import { toast } from '@/shared/feedback/toast-store'
+import { useTaskDetail } from '@/features/task/hooks/use-task-detail'
 
 export default function TaskDetailPage() {
   const { taskId } = useParams()
   const id = taskId?.trim() ?? ''
   const role = useRoleStore((s) => s.currentRole)
-  const qc = useQueryClient()
-
-  const query = useQuery({
-    queryKey: taskKeys.detail(id),
-    queryFn: () => fetchTaskDetail(id),
-    enabled: Boolean(id),
-  })
-
-  const mutation = useMutation({
-    mutationFn: (cmd: TaskCommandOp) => executeTaskCommand(id, cmd),
-    onSuccess: async (_, cmd) => {
-      if (cmd.op === 'approve') {
-        await invalidateAfterCommand(qc, 'taskApprove')
-      } else if (cmd.op === 'reject') {
-        await invalidateAfterCommand(qc, 'taskReject')
-      } else {
-        await invalidateAfterCommand(qc, 'taskFlowMutation')
-      }
-      await qc.invalidateQueries({ queryKey: taskKeys.detail(id) })
-      toast('操作成功')
-    },
-    onError: (e) => {
-      const msg = e instanceof ApiHttpError ? e.message : e instanceof Error ? e.message : '操作失败'
-      toast(msg, { variant: 'destructive' })
-    },
-  })
+  const { query, mutation } = useTaskDetail(taskId)
 
   if (!id) {
     return (

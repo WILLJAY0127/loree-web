@@ -1,47 +1,28 @@
-import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { fetchTaskList, type TaskListQueryParams } from '@/features/task/api/task-api'
-import { fetchProjectList } from '@/features/project/api/project-api'
-import { projectKeys, taskKeys } from '@/shared/query/query-keys'
+import { useProjectListQuery } from '@/features/project/hooks/use-project-list-query'
+import { useTaskList } from '@/features/task/hooks/use-task-list'
 import { ListQueryShell } from '@/shared/components/page-state/list-query-shell'
 import { TaskListToolbar } from '@/features/task/components/task-list-toolbar'
 import { useRoleStore } from '@/shared/store/role-store'
 
-const PAGE_SIZE = 20
-
 export default function TaskListPage() {
   const role = useRoleStore((s) => s.currentRole)
-  const [page, setPage] = useState(0)
-  const [status, setStatus] = useState('')
-  const [projectId, setProjectId] = useState('')
-  const [carriedOnly, setCarriedOnly] = useState(false)
+  const {
+    page,
+    setPage,
+    status,
+    setStatus,
+    projectId,
+    setProjectId,
+    carriedOnly,
+    setCarriedOnly,
+    query,
+  } = useTaskList()
 
-  const listParams: TaskListQueryParams = useMemo(() => {
-    const p: TaskListQueryParams = { page, size: PAGE_SIZE }
-    if (status) p.status = status
-    if (projectId.trim()) p.projectId = projectId.trim()
-    if (carriedOnly) p.isCarriedOver = true
-    return p
-  }, [page, status, projectId, carriedOnly])
-
-  useEffect(() => {
-    setPage(0)
-  }, [status, projectId, carriedOnly])
-
-  const projectsQuery = useQuery({
-    queryKey: projectKeys.list({ scope: 'all' }),
-    queryFn: () => fetchProjectList(),
-  })
-
+  const projectsQuery = useProjectListQuery()
   const projects = projectsQuery.data?.data
-
-  const query = useQuery({
-    queryKey: taskKeys.list(listParams),
-    queryFn: () => fetchTaskList(listParams),
-  })
 
   const rows = query.data?.data.content
   const pageInfo = query.data?.data

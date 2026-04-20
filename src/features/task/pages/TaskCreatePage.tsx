@@ -1,11 +1,10 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { postTask } from '@/features/task/api/task-api'
-import { fetchProjectList } from '@/features/project/api/project-api'
-import { projectKeys } from '@/shared/query/query-keys'
+import { useProjectListQuery } from '@/features/project/hooks/use-project-list-query'
 import { invalidateAfterCommand } from '@/shared/query/invalidate-after-command'
 import {
   createTaskFormSchema,
@@ -22,10 +21,7 @@ export default function TaskCreatePage() {
   const [sp] = useSearchParams()
   const urlProjectId = sp.get('projectId')?.trim() ?? ''
 
-  const projectsQuery = useQuery({
-    queryKey: projectKeys.list({ scope: 'all' }),
-    queryFn: () => fetchProjectList(),
-  })
+  const projectsQuery = useProjectListQuery()
   const projects = projectsQuery.data?.data
 
   const form = useForm<CreateTaskFormValues>({

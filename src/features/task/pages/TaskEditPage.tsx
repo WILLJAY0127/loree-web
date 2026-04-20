@@ -4,10 +4,10 @@ import { useEffect, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { fetchProjectList } from '@/features/project/api/project-api'
+import { useProjectListQuery } from '@/features/project/hooks/use-project-list-query'
 import { fetchTaskDetail, putTask } from '@/features/task/api/task-api'
 import type { UpdateTaskBody } from '@/features/task/api/types'
-import { projectKeys, taskKeys } from '@/shared/query/query-keys'
+import { taskKeys } from '@/shared/query/query-keys'
 import { invalidateAfterCommand } from '@/shared/query/invalidate-after-command'
 import {
   createTaskFormSchema,
@@ -41,10 +41,7 @@ export default function TaskEditPage() {
     enabled: Boolean(id),
   })
 
-  const projectsQuery = useQuery({
-    queryKey: projectKeys.list({ scope: 'all' }),
-    queryFn: () => fetchProjectList(),
-  })
+  const projectsQuery = useProjectListQuery()
   const projects = projectsQuery.data?.data
 
   const form = useForm<CreateTaskFormValues>({

@@ -1,13 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { Link } from 'react-router-dom'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { deleteProject, fetchProjectList, postProject, putProject } from '@/features/project/api/project-api'
+import { deleteProject, postProject, putProject } from '@/features/project/api/project-api'
 import type { ProjectSummaryRow } from '@/features/project/api/types'
 import { projectUpsertSchema, toProjectUpsertBody, type ProjectUpsertForm } from '@/features/project/schemas'
-import { projectKeys } from '@/shared/query/query-keys'
+import { useProjectListQuery } from '@/features/project/hooks/use-project-list-query'
 import { ListQueryShell } from '@/shared/components/page-state/list-query-shell'
 import { useRoleStore } from '@/shared/store/role-store'
 import { invalidateAfterCommand } from '@/shared/query/invalidate-after-command'
@@ -36,10 +36,7 @@ export default function ProjectListPage() {
     defaultValues: emptyForm,
   })
 
-  const query = useQuery({
-    queryKey: projectKeys.list({ scope: 'all' }),
-    queryFn: () => fetchProjectList(),
-  })
+  const query = useProjectListQuery()
 
   const rows = query.data?.data
   const isEmpty = query.isSuccess && rows !== undefined && rows.length === 0
