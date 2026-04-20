@@ -1,5 +1,5 @@
 import type { ApiEnvelope, PagedPayload } from '@/shared/api/types'
-import type { TaskBoardRow } from '@/features/task/api/types'
+import type { TaskBoardRow, TaskDetail } from '@/features/task/api/types'
 import { httpGet } from '@/shared/api/http'
 
 export type TaskListQueryParams = {
@@ -25,4 +25,8 @@ function toSearchParams(p: TaskListQueryParams): string {
 export function fetchTaskList(params: TaskListQueryParams = {}) {
   const qs = toSearchParams(params)
   return httpGet<ApiEnvelope<PagedPayload<TaskBoardRow>>>(`/api/v1/tasks?${qs}`)
+}
+
+export function fetchTaskDetail(taskId: string) {
+  return httpGet<ApiEnvelope<TaskDetail>>(`/api/v1/tasks/${encodeURIComponent(taskId)}`)
 }

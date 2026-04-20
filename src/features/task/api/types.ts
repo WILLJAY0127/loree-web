@@ -12,3 +12,20 @@ export interface TaskBoardRow {
   createdAt: string
   updatedAt: string
 }
+
+/** GET /api/v1/tasks/{id} data */
+export interface TaskDetail {
+  taskId: string
+  projectId: string
+  projectName: string
+  title: string
+  status: string
+  estimatedMinutes: number
+  acceptanceCriteria: string
+  rejectReason: string | null
+  subModule: string | null
+  dueAt: string | null
+  knowledgeCount: number
+  createdAt: string
+  updatedAt: string
+}
