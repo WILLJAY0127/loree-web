@@ -1,15 +1,132 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ListSkeleton } from '@/shared/components/page-state/list-skeleton'
 import { QueryErrorPanel } from '@/shared/components/page-state/query-error-panel'
+import {
+  postKnowledgeArchive,
+  postKnowledgeRestore,
+  putKnowledgeContent,
+  putKnowledgePriority,
+  putKnowledgeTags,
+} from '@/features/knowledge/api/knowledge-api'
 import { useKnowledgeDetail } from '@/features/knowledge/hooks/use-knowledge-detail'
+import { knowledgeKeys } from '@/shared/query/query-keys'
+import { invalidateAfterCommand } from '@/shared/query/invalidate-after-command'
+import { confirmDestructive } from '@/shared/feedback/confirm-destructive'
+import { toast } from '@/shared/feedback/toast-store'
+import { ApiHttpError } from '@/shared/api/http'
 import { useRoleStore } from '@/shared/store/role-store'
+
+const PRIORITY_OPTIONS = ['P1', 'P2', 'P3'] as const
+
+function parseTags(raw: string): string[] {
+  return raw
+    .split(/[,，]/)
+    .map((s) => s.trim())
+    .filter(Boolean)
+}
 
 export default function KnowledgeDetailPage() {
   const { id } = useParams()
   const role = useRoleStore((s) => s.currentRole)
+  const qc = useQueryClient()
   const { knowledgeId, query } = useKnowledgeDetail(id)
+
+  const [editContent, setEditContent] = useState('')
+  const [editTagsRaw, setEditTagsRaw] = useState('')
+  const [editPriority, setEditPriority] = useState('P2')
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
+
+  const k = query.data?.data
+
+  useEffect(() => {
+    if (!k) return
+    setEditContent(k.content)
+    setEditTagsRaw(k.tags?.join(',') ?? '')
+    setEditPriority(k.priority)
+    setFieldErrors({})
+  }, [k?.knowledgeId, k?.updatedAt, k?.content, k?.tags, k?.priority])
+
+  const onMutationError = (e: unknown) => {
+    toast(e instanceof ApiHttpError ? e.message : '操作失败', { variant: 'destructive' })
+  }
+
+  const contentMutation = useMutation({
+    mutationFn: () => putKnowledgeContent(knowledgeId, { content: editContent.trim() }),
+    onSuccess: async () => {
+      await invalidateAfterCommand(qc, 'knowledgeEdit')
+      await qc.invalidateQueries({ queryKey: knowledgeKeys.detail(knowledgeId) })
+      toast('内容已保存')
+    },
+    onError: onMutationError,
+  })
+
+  const tagsMutation = useMutation({
+    mutationFn: (tags: string[]) => putKnowledgeTags(knowledgeId, { tags }),
+    onSuccess: async () => {
+      await invalidateAfterCommand(qc, 'knowledgeEdit')
+      await qc.invalidateQueries({ queryKey: knowledgeKeys.detail(knowledgeId) })
+      toast('标签已更新')
+    },
+    onError: onMutationError,
+  })
+
+  const priorityMutation = useMutation({
+    mutationFn: () => putKnowledgePriority(knowledgeId, { priority: editPriority }),
+    onSuccess: async () => {
+      await invalidateAfterCommand(qc, 'knowledgeEdit')
+      await qc.invalidateQueries({ queryKey: knowledgeKeys.detail(knowledgeId) })
+      toast('优先级已更新')
+    },
+    onError: onMutationError,
+  })
+
+  const archiveMutation = useMutation({
+    mutationFn: () => postKnowledgeArchive(knowledgeId),
+    onSuccess: async () => {
+      await invalidateAfterCommand(qc, 'knowledgeArchiveOrRestore')
+      await qc.invalidateQueries({ queryKey: knowledgeKeys.detail(knowledgeId) })
+      toast('已归档')
+    },
+    onError: onMutationError,
+  })
+
+  const restoreMutation = useMutation({
+    mutationFn: () => postKnowledgeRestore(knowledgeId),
+    onSuccess: async () => {
+      await invalidateAfterCommand(qc, 'knowledgeArchiveOrRestore')
+      await qc.invalidateQueries({ queryKey: knowledgeKeys.detail(knowledgeId) })
+      toast('已恢复')
+    },
+    onError: onMutationError,
+  })
+
+  const saveTags = () => {
+    const tags = parseTags(editTagsRaw)
+    if (tags.length < 1 || tags.length > 3) {
+      setFieldErrors({ tags: '需 1～3 个标签（逗号分隔）' })
+      return
+    }
+    setFieldErrors({})
+    tagsMutation.mutate(tags)
+  }
+
+  const requestArchive = () => {
+    if (!k) return
+    void confirmDestructive(`确定归档知识点？将自动断开所有关联。\n${k.content.slice(0, 80)}${k.content.length > 80 ? '…' : ''}`).then((ok) => {
+      if (ok) archiveMutation.mutate()
+    })
+  }
+
+  const busy =
+    contentMutation.isPending ||
+    tagsMutation.isPending ||
+    priorityMutation.isPending ||
+    archiveMutation.isPending ||
+    restoreMutation.isPending
 
   if (!knowledgeId) {
     return (
@@ -42,10 +159,10 @@ export default function KnowledgeDetailPage() {
     )
   }
 
-  const k = query.data?.data
   if (!k) return null
 
   const canEditMind = role === 'MIND' && !k.isArchived
+  const canRestoreMind = role === 'MIND' && k.isArchived
 
   return (
     <div className="flex flex-1 flex-col">
@@ -66,15 +183,99 @@ export default function KnowledgeDetailPage() {
       </div>
 
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto p-4 text-sm">
-        <section className="space-y-2 rounded-lg border bg-card p-4">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">内容</h2>
-          <p className="whitespace-pre-wrap leading-relaxed text-card-foreground">{k.content}</p>
-        </section>
+        {canEditMind ? (
+          <section className="space-y-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
+            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">编辑（精神）</h2>
+            <label className="grid gap-1 text-xs">
+              <span>内容</span>
+              <textarea
+                value={editContent}
+                onChange={(e) => setEditContent(e.target.value)}
+                className="min-h-[8rem] rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                maxLength={10000}
+              />
+            </label>
+            <Button
+              type="button"
+              size="sm"
+              disabled={busy}
+              onClick={() => {
+                const c = editContent.trim()
+                if (!c) {
+                  toast('内容不可为空', { variant: 'destructive' })
+                  return
+                }
+                contentMutation.mutate()
+              }}
+            >
+              保存内容
+            </Button>
 
-        <section className="space-y-2 rounded-lg border bg-card p-4">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">标签</h2>
-          <p className="text-card-foreground">{k.tags?.length ? k.tags.join(' · ') : '—'}</p>
-        </section>
+            <label className="grid gap-1 text-xs">
+              <span>标签（1～3 个，逗号分隔）</span>
+              <input
+                value={editTagsRaw}
+                onChange={(e) => setEditTagsRaw(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              />
+              {fieldErrors.tags ? <span className="text-destructive">{fieldErrors.tags}</span> : null}
+            </label>
+            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={saveTags}>
+              保存标签
+            </Button>
+
+            <label className="grid gap-1 text-xs">
+              <span>优先级</span>
+              <select
+                value={editPriority}
+                onChange={(e) => setEditPriority(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              >
+                {PRIORITY_OPTIONS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <Button type="button" size="sm" variant="outline" disabled={busy} onClick={() => priorityMutation.mutate()}>
+              保存优先级
+            </Button>
+
+            <div className="border-t border-border pt-3">
+              <Button type="button" size="sm" variant="destructive" disabled={busy} onClick={requestArchive}>
+                归档
+              </Button>
+            </div>
+          </section>
+        ) : null}
+
+        {canRestoreMind ? (
+          <section className="rounded-lg border bg-card p-4">
+            <p className="mb-2 text-xs text-muted-foreground">本知识点已归档，可恢复为活跃态（不自动重建关联）。</p>
+            <Button type="button" size="sm" variant="default" disabled={busy} onClick={() => restoreMutation.mutate()}>
+              恢复
+            </Button>
+          </section>
+        ) : null}
+
+        {role === 'BODY' ? (
+          <p className="text-xs text-muted-foreground">身体模式：以下为只读展示。</p>
+        ) : null}
+
+        {!canEditMind ? (
+          <>
+            <section className="space-y-2 rounded-lg border bg-card p-4">
+              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">内容</h2>
+              <p className="whitespace-pre-wrap leading-relaxed text-card-foreground">{k.content}</p>
+            </section>
+
+            <section className="space-y-2 rounded-lg border bg-card p-4">
+              <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">标签</h2>
+              <p className="text-card-foreground">{k.tags?.length ? k.tags.join(' · ') : '—'}</p>
+            </section>
+          </>
+        ) : null}
 
         {k.linkedKnowledge?.length ? (
           <section className="space-y-2 rounded-lg border bg-card p-4">
@@ -125,16 +326,6 @@ export default function KnowledgeDetailPage() {
             </div>
           ) : null}
         </dl>
-
-        {canEditMind ? (
-          <p className="text-xs text-muted-foreground">
-            编辑内容 / 标签 / 优先级 / 归档等入口将在后续接入 Command 与表单。
-          </p>
-        ) : k.isArchived ? (
-          <p className="text-xs text-muted-foreground">已归档知识点只读；恢复需精神模式（后续接 Command）。</p>
-        ) : (
-          <p className="text-xs text-muted-foreground">身体模式：详情只读；编辑请切换到精神模式（后续接权限与表单）。</p>
-        )}
 
         <Button type="button" variant="outline" size="sm" className="w-fit" asChild>
           <Link to="/knowledge">返回知识点列表</Link>

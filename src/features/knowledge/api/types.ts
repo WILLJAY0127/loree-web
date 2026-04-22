@@ -39,6 +39,18 @@ export interface CreateKnowledgeResponseBody {
   knowledgeId: string
 }
 
+export interface EditKnowledgeContentBody {
+  content: string
+}
+
+export interface EditKnowledgeTagsBody {
+  tags: string[]
+}
+
+export interface EditKnowledgePriorityBody {
+  priority: string
+}
+
 export interface KnowledgeDetail {
   knowledgeId: string
   taskId?: string | null

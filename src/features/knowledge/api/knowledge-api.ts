@@ -2,10 +2,13 @@ import type { ApiEnvelope, PagedPayload } from '@/shared/api/types'
 import type {
   CreateKnowledgeResponseBody,
   DepositKnowledgeBody,
+  EditKnowledgeContentBody,
+  EditKnowledgePriorityBody,
+  EditKnowledgeTagsBody,
   KnowledgeDetail,
   KnowledgeListItem,
 } from '@/features/knowledge/api/types'
-import { httpGet, httpPost } from '@/shared/api/http'
+import { httpGet, httpPost, httpPut } from '@/shared/api/http'
 
 export type KnowledgeListQueryParams = {
   projectId?: string
@@ -49,4 +52,30 @@ export function postDepositKnowledge(taskId: string, body: DepositKnowledgeBody)
 
 export function postDepositComplete(taskId: string) {
   return httpPost<ApiEnvelope<unknown>>(`/api/v1/tasks/${encodeURIComponent(taskId)}/deposit/complete`, {})
+}
+
+export function putKnowledgeContent(knowledgeId: string, body: EditKnowledgeContentBody) {
+  return httpPut<ApiEnvelope<unknown>>(
+    `/api/v1/knowledge/${encodeURIComponent(knowledgeId)}/content`,
+    body,
+  )
+}
+
+export function putKnowledgeTags(knowledgeId: string, body: EditKnowledgeTagsBody) {
+  return httpPut<ApiEnvelope<unknown>>(`/api/v1/knowledge/${encodeURIComponent(knowledgeId)}/tags`, body)
+}
+
+export function putKnowledgePriority(knowledgeId: string, body: EditKnowledgePriorityBody) {
+  return httpPut<ApiEnvelope<unknown>>(
+    `/api/v1/knowledge/${encodeURIComponent(knowledgeId)}/priority`,
+    body,
+  )
+}
+
+export function postKnowledgeArchive(knowledgeId: string) {
+  return httpPost<ApiEnvelope<unknown>>(`/api/v1/knowledge/${encodeURIComponent(knowledgeId)}/archive`, {})
+}
+
+export function postKnowledgeRestore(knowledgeId: string) {
+  return httpPost<ApiEnvelope<unknown>>(`/api/v1/knowledge/${encodeURIComponent(knowledgeId)}/restore`, {})
 }
