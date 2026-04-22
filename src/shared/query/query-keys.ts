@@ -44,6 +44,7 @@ export const reviewKeys = {
   all: ['reviews'] as const,
   lists: () => [...reviewKeys.all, 'list'] as const,
   list: (filters: unknown) => [...reviewKeys.lists(), filters] as const,
+  today: () => [...reviewKeys.all, 'today'] as const,
 }
 
 /** 沉淀入口 / 会话（与文档示例 `['deposit-session']` 对齐） */
