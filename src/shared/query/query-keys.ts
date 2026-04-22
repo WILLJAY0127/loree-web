@@ -23,6 +23,8 @@ export const knowledgeKeys = {
   list: (filters: unknown) => [...knowledgeKeys.lists(), filters] as const,
   details: () => [...knowledgeKeys.all, 'detail'] as const,
   detail: (knowledgeId: string) => [...knowledgeKeys.details(), knowledgeId] as const,
+  recommendations: (knowledgeId: string, limit: number) =>
+    [...knowledgeKeys.details(), knowledgeId, 'recommendations', limit] as const,
 }
 
 export const tagKeys = {

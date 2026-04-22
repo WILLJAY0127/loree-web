@@ -1,5 +1,7 @@
 import type { ApiEnvelope, PagedPayload } from '@/shared/api/types'
 import type {
+  CreateKnowledgeLinkBody,
+  CreateKnowledgeLinkResponseBody,
   CreateKnowledgeResponseBody,
   DepositKnowledgeBody,
   EditKnowledgeContentBody,
@@ -7,8 +9,9 @@ import type {
   EditKnowledgeTagsBody,
   KnowledgeDetail,
   KnowledgeListItem,
+  RecommendationItem,
 } from '@/features/knowledge/api/types'
-import { httpGet, httpPost, httpPut } from '@/shared/api/http'
+import { httpDelete, httpGet, httpPost, httpPut } from '@/shared/api/http'
 
 export type KnowledgeListQueryParams = {
   projectId?: string
@@ -78,4 +81,20 @@ export function postKnowledgeArchive(knowledgeId: string) {
 
 export function postKnowledgeRestore(knowledgeId: string) {
   return httpPost<ApiEnvelope<unknown>>(`/api/v1/knowledge/${encodeURIComponent(knowledgeId)}/restore`, {})
+}
+
+export function fetchKnowledgeRecommendations(knowledgeId: string, limit = 15) {
+  const q = new URLSearchParams()
+  q.set('limit', String(limit))
+  return httpGet<ApiEnvelope<RecommendationItem[]>>(
+    `/api/v1/knowledge/${encodeURIComponent(knowledgeId)}/recommendations?${q.toString()}`,
+  )
+}
+
+export function postKnowledgeLink(body: CreateKnowledgeLinkBody) {
+  return httpPost<ApiEnvelope<CreateKnowledgeLinkResponseBody>>('/api/v1/knowledge-links', body)
+}
+
+export function deleteKnowledgeLink(linkId: string) {
+  return httpDelete<null>(`/api/v1/knowledge-links/${encodeURIComponent(linkId)}`)
 }

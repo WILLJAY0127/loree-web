@@ -65,8 +65,13 @@ export async function invalidateAfterCommand(
       ])
       return
     case 'knowledgeEdit':
-    case 'knowledgeLinkChange':
       await client.invalidateQueries({ queryKey: knowledgeKeys.all })
+      return
+    case 'knowledgeLinkChange':
+      await Promise.all([
+        client.invalidateQueries({ queryKey: knowledgeKeys.all }),
+        client.invalidateQueries({ queryKey: inspectionKeys.all }),
+      ])
       return
     case 'knowledgeArchiveOrRestore':
       await Promise.all([

@@ -51,6 +51,23 @@ export interface EditKnowledgePriorityBody {
   priority: string
 }
 
+export interface RecommendationItem {
+  knowledgeId: string
+  content: string
+  tags: string[]
+  matchReason: string
+  commonTags: string[]
+}
+
+export interface CreateKnowledgeLinkBody {
+  fromId: string
+  toId: string
+}
+
+export interface CreateKnowledgeLinkResponseBody {
+  linkId: string
+}
+
 export interface KnowledgeDetail {
   knowledgeId: string
   taskId?: string | null

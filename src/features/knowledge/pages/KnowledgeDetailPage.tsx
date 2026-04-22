@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button'
 import { ListSkeleton } from '@/shared/components/page-state/list-skeleton'
 import { QueryErrorPanel } from '@/shared/components/page-state/query-error-panel'
 import {
+  deleteKnowledgeLink,
+  fetchKnowledgeRecommendations,
   postKnowledgeArchive,
+  postKnowledgeLink,
   postKnowledgeRestore,
   putKnowledgeContent,
   putKnowledgePriority,
@@ -21,6 +24,14 @@ import { ApiHttpError } from '@/shared/api/http'
 import { useRoleStore } from '@/shared/store/role-store'
 
 const PRIORITY_OPTIONS = ['P1', 'P2', 'P3'] as const
+const RECOMMEND_LIMIT = 15
+
+function matchReasonLabel(reason: string): string {
+  if (reason === 'COMMON_TAG') return '共同标签'
+  if (reason === 'SAME_PROJECT') return '同项目'
+  if (reason === 'SAME_TASK') return '同任务'
+  return reason
+}
 
 function parseTags(raw: string): string[] {
   return raw
@@ -41,6 +52,12 @@ export default function KnowledgeDetailPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const k = query.data?.data
+
+  const recommendationsQuery = useQuery({
+    queryKey: knowledgeKeys.recommendations(knowledgeId, RECOMMEND_LIMIT),
+    queryFn: () => fetchKnowledgeRecommendations(knowledgeId, RECOMMEND_LIMIT),
+    enabled: Boolean(knowledgeId) && role === 'MIND' && k != null && !k.isArchived,
+  })
 
   useEffect(() => {
     if (!k) return
@@ -104,6 +121,26 @@ export default function KnowledgeDetailPage() {
     onError: onMutationError,
   })
 
+  const linkCreateMutation = useMutation({
+    mutationFn: (toId: string) => postKnowledgeLink({ fromId: knowledgeId, toId }),
+    onSuccess: async () => {
+      await invalidateAfterCommand(qc, 'knowledgeLinkChange')
+      await qc.invalidateQueries({ queryKey: knowledgeKeys.detail(knowledgeId) })
+      toast('已建立关联')
+    },
+    onError: onMutationError,
+  })
+
+  const linkDeleteMutation = useMutation({
+    mutationFn: (linkId: string) => deleteKnowledgeLink(linkId),
+    onSuccess: async () => {
+      await invalidateAfterCommand(qc, 'knowledgeLinkChange')
+      await qc.invalidateQueries({ queryKey: knowledgeKeys.detail(knowledgeId) })
+      toast('已解除关联')
+    },
+    onError: onMutationError,
+  })
+
   const saveTags = () => {
     const tags = parseTags(editTagsRaw)
     if (tags.length < 1 || tags.length > 3) {
@@ -121,12 +158,20 @@ export default function KnowledgeDetailPage() {
     })
   }
 
+  const requestUnlink = (linkId: string, peerPreview: string) => {
+    void confirmDestructive(`确定解除与该知识点的关联？\n${peerPreview.slice(0, 80)}${peerPreview.length > 80 ? '…' : ''}`).then((ok) => {
+      if (ok) linkDeleteMutation.mutate(linkId)
+    })
+  }
+
   const busy =
     contentMutation.isPending ||
     tagsMutation.isPending ||
     priorityMutation.isPending ||
     archiveMutation.isPending ||
-    restoreMutation.isPending
+    restoreMutation.isPending ||
+    linkCreateMutation.isPending ||
+    linkDeleteMutation.isPending
 
   if (!knowledgeId) {
     return (
@@ -283,9 +328,23 @@ export default function KnowledgeDetailPage() {
             <ul className="space-y-3">
               {k.linkedKnowledge.map((l) => (
                 <li key={l.linkId} className="border-b border-border pb-3 last:border-0 last:pb-0">
-                  <Link to={`/knowledge/${l.knowledgeId}`} className="text-sm font-medium text-primary hover:underline">
-                    查看
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link to={`/knowledge/${l.knowledgeId}`} className="text-sm font-medium text-primary hover:underline">
+                      查看
+                    </Link>
+                    {canEditMind ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs text-destructive hover:text-destructive"
+                        disabled={busy}
+                        onClick={() => requestUnlink(l.linkId, l.content)}
+                      >
+                        解除关联
+                      </Button>
+                    ) : null}
+                  </div>
                   <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{l.content}</p>
                   {l.tags?.length ? (
                     <p className="mt-1 text-[11px] text-muted-foreground">{l.tags.join(' · ')}</p>
@@ -293,6 +352,58 @@ export default function KnowledgeDetailPage() {
                 </li>
               ))}
             </ul>
+          </section>
+        ) : null}
+
+        {canEditMind ? (
+          <section className="space-y-3 rounded-lg border bg-card p-4">
+            <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">关联推荐</h2>
+            {recommendationsQuery.isPending ? (
+              <p className="text-xs text-muted-foreground">加载推荐中…</p>
+            ) : recommendationsQuery.isError ? (
+              <div className="space-y-2">
+                <p className="text-xs text-destructive">推荐加载失败</p>
+                <Button type="button" variant="outline" size="sm" onClick={() => void recommendationsQuery.refetch()}>
+                  重试
+                </Button>
+              </div>
+            ) : !(recommendationsQuery.data?.data?.length ?? 0) ? (
+              <p className="text-xs text-muted-foreground">暂无推荐（可尝试补充标签或同项目下的其他知识点）</p>
+            ) : (
+              <ul className="space-y-3">
+                {(recommendationsQuery.data?.data ?? []).map((item) => (
+                  <li key={item.knowledgeId} className="border-b border-border pb-3 last:border-0 last:pb-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className="text-[10px] font-normal">
+                        {matchReasonLabel(item.matchReason)}
+                      </Badge>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="h-7 text-xs"
+                        disabled={busy}
+                        onClick={() => linkCreateMutation.mutate(item.knowledgeId)}
+                      >
+                        建立关联
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" asChild>
+                        <Link to={`/knowledge/${item.knowledgeId}`}>打开</Link>
+                      </Button>
+                    </div>
+                    <p className="mt-1 line-clamp-3 text-xs text-muted-foreground">{item.content}</p>
+                    {item.tags?.length ? (
+                      <p className="mt-1 text-[11px] text-muted-foreground">{item.tags.join(' · ')}</p>
+                    ) : null}
+                    {item.commonTags?.length ? (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        共同标签：{item.commonTags.join(' · ')}
+                      </p>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         ) : null}
 
