@@ -70,7 +70,7 @@ export async function invalidateAfterCommand(
     case 'knowledgeLinkChange':
       await Promise.all([
         client.invalidateQueries({ queryKey: knowledgeKeys.all }),
-        client.invalidateQueries({ queryKey: inspectionKeys.all }),
+        client.invalidateQueries({ queryKey: inspectionKeys.step2() }),
       ])
       return
     case 'knowledgeArchiveOrRestore':
