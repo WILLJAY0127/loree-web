@@ -31,6 +31,11 @@ export const tagKeys = {
 
 export const inspectionKeys = {
   all: ['inspection'] as const,
+  current: () => [...inspectionKeys.all, 'current'] as const,
+  step1: () => [...inspectionKeys.all, 'step1'] as const,
+  step2: () => [...inspectionKeys.all, 'step2'] as const,
+  step3: () => [...inspectionKeys.all, 'step3'] as const,
+  step4: () => [...inspectionKeys.all, 'step4'] as const,
 }
 
 export const reviewKeys = {

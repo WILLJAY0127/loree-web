@@ -1,6 +1,7 @@
 import type { QueryClient } from '@tanstack/react-query'
 import {
   depositSessionKeys,
+  inspectionKeys,
   knowledgeKeys,
   projectKeys,
   reviewKeys,
@@ -25,6 +26,8 @@ export type LoreeInvalidationCommand =
   | 'knowledgeLinkChange'
   | 'knowledgeArchiveOrRestore'
   | 'reviewComplete'
+  /** 完成本周知识巡检（幂等） */
+  | 'inspectionComplete'
 
 export async function invalidateAfterCommand(
   client: QueryClient,
@@ -74,6 +77,12 @@ export async function invalidateAfterCommand(
     case 'reviewComplete':
       await Promise.all([
         client.invalidateQueries({ queryKey: reviewKeys.all }),
+        client.invalidateQueries({ queryKey: knowledgeKeys.all }),
+      ])
+      return
+    case 'inspectionComplete':
+      await Promise.all([
+        client.invalidateQueries({ queryKey: inspectionKeys.all }),
         client.invalidateQueries({ queryKey: knowledgeKeys.all }),
       ])
       return
