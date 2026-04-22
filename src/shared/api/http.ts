@@ -1,4 +1,5 @@
 import { useRoleStore } from '@/shared/store/role-store'
+import { enrichApiFailureMessage } from '@/shared/api/error-message'
 
 const BASE = import.meta.env.VITE_API_BASE_URL?.trim() ?? ''
 const DEFAULT_TIMEOUT_MS = 30_000
@@ -6,12 +7,15 @@ const DEFAULT_TIMEOUT_MS = 30_000
 export class ApiHttpError extends Error {
   readonly status: number
   readonly bodyText: string | undefined
+  /** 响应体信封 `code`（与 HTTP status 不同），如 40301 */
+  readonly apiCode?: number
 
-  constructor(message: string, status: number, bodyText?: string) {
+  constructor(message: string, status: number, bodyText?: string, apiCode?: number) {
     super(message)
     this.name = 'ApiHttpError'
     this.status = status
     this.bodyText = bodyText
+    this.apiCode = apiCode
   }
 }
 
@@ -65,11 +69,15 @@ export async function httpJson<T>(
     }
 
     if (!res.ok) {
-      const msg =
-        json && typeof json === 'object' && json !== null && 'message' in json
-          ? String((json as { message: unknown }).message)
-          : `HTTP ${res.status}`
-      throw new ApiHttpError(msg, res.status, text)
+      let rawMsg = `HTTP ${res.status}`
+      let apiCode: number | undefined
+      if (json && typeof json === 'object' && json !== null) {
+        const o = json as Record<string, unknown>
+        if ('message' in o) rawMsg = String(o.message)
+        if (typeof o.code === 'number') apiCode = o.code
+      }
+      const msg = enrichApiFailureMessage(rawMsg, res.status, apiCode)
+      throw new ApiHttpError(msg, res.status, text, apiCode)
     }
 
     return json as T
