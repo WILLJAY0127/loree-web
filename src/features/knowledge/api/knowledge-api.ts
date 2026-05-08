@@ -1,5 +1,6 @@
 import type { ApiEnvelope, PagedPayload } from '@/shared/api/types'
 import type {
+  CreateKnowledgeBody,
   CreateKnowledgeLinkBody,
   CreateKnowledgeLinkResponseBody,
   CreateKnowledgeResponseBody,
@@ -51,6 +52,11 @@ export function postDepositKnowledge(taskId: string, body: DepositKnowledgeBody)
     `/api/v1/tasks/${encodeURIComponent(taskId)}/deposit/knowledge`,
     body,
   )
+}
+
+/** POST /api/v1/knowledge — 独立创建知识点（不绑定任务）*/
+export function postCreateKnowledge(body: CreateKnowledgeBody) {
+  return httpPost<ApiEnvelope<CreateKnowledgeResponseBody>>('/api/v1/knowledge', body)
 }
 
 export function postDepositComplete(taskId: string) {

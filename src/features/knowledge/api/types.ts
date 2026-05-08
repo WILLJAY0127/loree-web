@@ -27,13 +27,16 @@ export interface KnowledgeReviewNoteItem {
   note: string
 }
 
-/** POST /api/v1/tasks/{taskId}/deposit/knowledge — 与独立创建字段一致 */
+/** POST /api/v1/tasks/{taskId}/deposit/knowledge — streaming 沉淀单条 */
 export interface DepositKnowledgeBody {
   projectId: string
   content: string
   tags: string[]
   priority: string
 }
+
+/** POST /api/v1/knowledge — 独立创建知识点（与 deposit 字段一致）*/
+export type CreateKnowledgeBody = DepositKnowledgeBody
 
 export interface CreateKnowledgeResponseBody {
   knowledgeId: string
