@@ -5,6 +5,7 @@ import {
   knowledgeKeys,
   projectKeys,
   reviewKeys,
+  settingsKeys,
   tagKeys,
   taskKeys,
 } from '@/shared/query/query-keys'
@@ -28,6 +29,8 @@ export type LoreeInvalidationCommand =
   | 'reviewComplete'
   /** 完成本周知识巡检（幂等） */
   | 'inspectionComplete'
+  /** PUT /api/v1/settings */
+  | 'settingsMutate'
 
 export async function invalidateAfterCommand(
   client: QueryClient,
@@ -90,6 +93,9 @@ export async function invalidateAfterCommand(
         client.invalidateQueries({ queryKey: inspectionKeys.all }),
         client.invalidateQueries({ queryKey: knowledgeKeys.all }),
       ])
+      return
+    case 'settingsMutate':
+      await client.invalidateQueries({ queryKey: settingsKeys.all })
       return
     default: {
       const _exhaustive: never = command

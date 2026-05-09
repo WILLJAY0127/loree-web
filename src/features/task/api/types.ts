@@ -1,4 +1,10 @@
-/** 任务看板行 — 对齐 API 文档 GET /tasks content 项。 */
+/**
+ * 任务看板行 — 对齐 API 文档 GET /tasks content 项。
+ *
+ * 注：所有标 `?: string | null` 的字段（如 rejectReason）后端默认 Jackson
+ * 配置 `serializationInclusion(NON_NULL)`，null 值会被序列化时省略。
+ * 前端用 `value ? ... : ...` / `value ?? '—'` 模式兼容三态（undefined/null/string）。
+ */
 export interface TaskBoardRow {
   taskId: string
   projectId: string
@@ -7,7 +13,7 @@ export interface TaskBoardRow {
   status: string
   estimatedMinutes: number
   acceptanceCriteria: string
-  rejectReason: string | null
+  rejectReason?: string | null
   isCarriedOver: boolean
   createdAt: string
   updatedAt: string
@@ -22,9 +28,9 @@ export interface TaskDetail {
   status: string
   estimatedMinutes: number
   acceptanceCriteria: string
-  rejectReason: string | null
-  subModule: string | null
-  dueAt: string | null
+  rejectReason?: string | null
+  subModule?: string | null
+  dueAt?: string | null
   knowledgeCount: number
   createdAt: string
   updatedAt: string

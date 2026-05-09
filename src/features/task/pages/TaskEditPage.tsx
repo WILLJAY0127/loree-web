@@ -20,7 +20,7 @@ import { toast } from '@/shared/feedback/toast-store'
 import { ApiHttpError } from '@/shared/api/http'
 import { zodResolverTyped } from '@/shared/form/zod-resolver-typed'
 
-function isoToDatetimeLocal(iso: string | null): string {
+function isoToDatetimeLocal(iso: string | null | undefined): string {
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''

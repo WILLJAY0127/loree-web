@@ -52,3 +52,8 @@ export const depositSessionKeys = {
   all: ['deposit-session'] as const,
   byTask: (taskId: string) => [...depositSessionKeys.all, taskId] as const,
 }
+
+export const settingsKeys = {
+  all: ['settings'] as const,
+  detail: () => [...settingsKeys.all, 'detail'] as const,
+}

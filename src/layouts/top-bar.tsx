@@ -1,3 +1,4 @@
+import { postRoleSwitch } from '@/features/settings/api/role-api'
 import { useRoleStore } from '@/shared/store/role-store'
 import { routeBackTarget, routeTitle } from '@/layouts/route-meta'
 import { Button } from '@/components/ui/button'
@@ -5,6 +6,8 @@ import { Link, useLocation } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { openConfirm } from '@/shared/feedback/confirm-store'
+import { toast } from '@/shared/feedback/toast-store'
+import { ApiHttpError } from '@/shared/api/http'
 
 export function TopBar() {
   const location = useLocation()
@@ -23,8 +26,17 @@ export function TopBar() {
       variant: 'default',
       confirmText: '切换',
       cancelText: '取消',
-    }).then((ok) => {
-      if (ok) setRole(next)
+    }).then(async (ok) => {
+      if (!ok) return
+      try {
+        await postRoleSwitch(next)
+        setRole(next)
+        toast(`已切换到「${nextLabel}」`)
+      } catch (e) {
+        toast(e instanceof ApiHttpError ? e.message : '切换失败（请先启动后端）', {
+          variant: 'destructive',
+        })
+      }
     })
   }
 

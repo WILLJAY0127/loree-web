@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { postRoleSwitch } from '@/features/settings/api/role-api'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { AppRole } from '@/shared/store/role-store'
@@ -49,7 +50,15 @@ export function InitialRoleWelcome() {
 
   const [draft, setDraft] = useState<AppRole>(currentRole)
 
-  const enter = () => {
+  const enter = async () => {
+    const prev = useRoleStore.getState().currentRole
+    if (draft !== prev) {
+      try {
+        await postRoleSwitch(draft)
+      } catch {
+        /* 后端不可用时仍允许本地进入 */
+      }
+    }
     setRole(draft)
     dismiss()
   }
